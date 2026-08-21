@@ -1,0 +1,1 @@
+ALTER TABLE "listings" ADD COLUMN "bid_updated_at" timestamp with time zone DEFAULT now() NOT NULL;
