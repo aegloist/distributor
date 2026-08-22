@@ -9,6 +9,21 @@ export interface FetchedMeta {
   faviconUrl: string | null;
 }
 
+const INTERSTITIAL_TITLE =
+  /^(just a moment|attention required|checking your browser|verifying you are human|security check|access denied)\b/i;
+
+/** Only durable, page-specific metadata belongs in the 24-hour cache. */
+export function isUsableMetadata(meta: FetchedMeta, sourceUrl: string): boolean {
+  const title = meta.title?.trim() ?? "";
+  if (INTERSTITIAL_TITLE.test(title)) return false;
+  const sourceHost = hostname(sourceUrl).toLowerCase();
+  return (
+    !!meta.description ||
+    !!meta.logoUrl ||
+    (!!title && title.toLowerCase() !== sourceHost)
+  );
+}
+
 /**
  * Fetch a URL and parse OpenGraph / oEmbed-style metadata.
  * Server-side only. Time-boxed to 5s. Follows redirects.
@@ -16,10 +31,14 @@ export interface FetchedMeta {
 export async function fetchMeta(rawUrl: string): Promise<FetchedMeta> {
   const url = normalizePublicUrl(rawUrl);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
     const { res, finalUrl } = await fetchWithSafeRedirects(url, controller.signal);
+
+    if (!res.ok || res.headers.get("cf-mitigated") === "challenge") {
+      throw new Error("Metadata destination returned an interstitial or error page.");
+    }
 
     const contentType = res.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("xml")) {
@@ -33,12 +52,24 @@ export async function fetchMeta(rawUrl: string): Promise<FetchedMeta> {
     }
 
     const html = await readLimitedText(res, 1_000_000);
-    return parseHtml(html, finalUrl);
+    const parsed = parseHtml(html, finalUrl);
+    return isUsableMetadata(parsed, finalUrl)
+      ? parsed
+      : fallbackMeta(finalUrl);
   } catch {
-    return { title: hostname(url), description: null, logoUrl: null, faviconUrl: faviconFor(url) };
+    return fallbackMeta(url);
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function fallbackMeta(url: string): FetchedMeta {
+  return {
+    title: hostname(url),
+    description: null,
+    logoUrl: null,
+    faviconUrl: faviconFor(url),
+  };
 }
 
 async function fetchWithSafeRedirects(

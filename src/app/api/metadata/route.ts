@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { fetchMeta } from "@/lib/metadata";
+import { fetchMeta, isUsableMetadata } from "@/lib/metadata";
 import { normalizePublicUrl } from "@/lib/utils";
 import { submitLimiter, hasRedis } from "@/lib/redis";
 import { db, schema } from "@/db";
@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 15;
 
 const Body = z.object({
   url: z.string().min(3).max(2048),
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
     // cache valid for 24h
     if (
       cached &&
+      isUsableMetadata(cached, normalized) &&
       Date.now() - cached.fetchedAt.getTime() < 1000 * 60 * 60 * 24
     ) {
       return NextResponse.json({
@@ -98,27 +100,34 @@ export async function POST(req: Request) {
 
   const meta = await fetchMeta(normalized);
 
-  // persist cache (best-effort)
+  // Persist only real page metadata. Remove stale challenge/fallback entries
+  // so a later request can retry instead of serving them for 24 hours.
   try {
-    await db
-      .insert(schema.metaCache)
-      .values({
-        url: normalized,
-        title: meta.title,
-        description: meta.description,
-        logoUrl: meta.logoUrl,
-        faviconUrl: meta.faviconUrl,
-      })
-      .onConflictDoUpdate({
-        target: schema.metaCache.url,
-        set: {
+    if (isUsableMetadata(meta, normalized)) {
+      await db
+        .insert(schema.metaCache)
+        .values({
+          url: normalized,
           title: meta.title,
           description: meta.description,
           logoUrl: meta.logoUrl,
           faviconUrl: meta.faviconUrl,
-          fetchedAt: new Date(),
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: schema.metaCache.url,
+          set: {
+            title: meta.title,
+            description: meta.description,
+            logoUrl: meta.logoUrl,
+            faviconUrl: meta.faviconUrl,
+            fetchedAt: new Date(),
+          },
+        });
+    } else {
+      await db
+        .delete(schema.metaCache)
+        .where(eq(schema.metaCache.url, normalized));
+    }
   } catch {
     /* ignore cache write failures */
   }

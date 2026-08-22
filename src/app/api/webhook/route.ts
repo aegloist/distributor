@@ -3,11 +3,12 @@ import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db, schema } from "@/db";
-import { fetchMeta } from "@/lib/metadata";
+import { fetchMeta, isUsableMetadata } from "@/lib/metadata";
 import { normalizePublicUrl, slugify } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const BidMetadata = z.object({
   kind: z.literal("distributor_bid"),
@@ -61,7 +62,9 @@ async function fulfillPaidOrder(order: PaidOrder) {
     .where(eq(schema.metaCache.url, url))
     .limit(1);
   const fetched =
-    cachedMeta && Date.now() - cachedMeta.fetchedAt.getTime() < 86_400_000
+    cachedMeta &&
+    isUsableMetadata(cachedMeta, url) &&
+    Date.now() - cachedMeta.fetchedAt.getTime() < 86_400_000
       ? {
           title: cachedMeta.title,
           description: cachedMeta.description,
