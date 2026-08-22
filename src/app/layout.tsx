@@ -42,12 +42,14 @@ export const metadata: Metadata = {
       "Put money in, get measurable attention out. A live leaderboard where every dollar is put to work.",
     type: "website",
     url: "/",
+    images: ["/api/og/home"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Distributor.lol: The distribution market",
     description:
       "Put money in, get measurable attention out. A live leaderboard where every dollar is put to work.",
+    images: ["/api/og/home"],
   },
 };
 
