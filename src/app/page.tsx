@@ -8,9 +8,14 @@ export const revalidate = 30;
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ url?: string }>;
+  searchParams: Promise<{ url?: string; bid?: string }>;
 }) {
-  const { url: prefillUrl } = await searchParams;
+  const { url: prefillUrl, bid: prefillBid } = await searchParams;
+  const parsedBid = Number(prefillBid);
+  const prefillBidCents =
+    Number.isInteger(parsedBid) && parsedBid >= 1 && parsedBid <= 20_000
+      ? parsedBid * 100
+      : undefined;
   const [rows, stats] = await Promise.all([
     getLeaderboard(100),
     getLeaderboardStats(),
@@ -58,7 +63,10 @@ export default async function Home({
 
         {/* Submit bar */}
         <div id="submit" className="mb-6 scroll-mt-20 rounded-xl border border-border bg-card/80 p-3 shadow-sm backdrop-blur-sm sm:p-4">
-          <SubmitBar initialUrl={prefillUrl ?? ""} />
+          <SubmitBar
+            initialUrl={prefillUrl ?? ""}
+            initialBidCents={prefillBidCents}
+          />
         </div>
 
         {/* The leaderboard IS the page */}

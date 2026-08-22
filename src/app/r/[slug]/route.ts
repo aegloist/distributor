@@ -67,6 +67,7 @@ export async function GET(
           and(
             eq(schema.clicks.listingId, listing.id),
             eq(schema.clicks.visitorHash, vHash),
+            eq(schema.clicks.isVerified, true),
             gt(schema.clicks.createdAt, since),
           ),
         )

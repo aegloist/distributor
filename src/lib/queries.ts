@@ -80,9 +80,9 @@ export async function getLeaderboardStats() {
       totalClickEvents: sql<number>`count(*)`,
       verifiedClickEvents: sql<number>`count(*) filter (where ${schema.clicks.isVerified})`,
       botClickEvents: sql<number>`count(*) filter (where ${schema.clicks.isBot})`,
-      uniqueVisitors: sql<number>`count(distinct ${schema.clicks.visitorHash})`,
-      clicksLast24h: sql<number>`count(*) filter (where ${schema.clicks.createdAt} > now() - interval '24 hours')`,
-      visitorsLast1h: sql<number>`count(distinct ${schema.clicks.visitorHash}) filter (where ${schema.clicks.createdAt} > now() - interval '1 hour')`,
+      uniqueVisitors: sql<number>`count(distinct ${schema.clicks.visitorHash}) filter (where ${schema.clicks.isVerified})`,
+      clicksLast24h: sql<number>`count(*) filter (where ${schema.clicks.isVerified} and ${schema.clicks.createdAt} > now() - interval '24 hours')`,
+      visitorsLast1h: sql<number>`count(distinct ${schema.clicks.visitorHash}) filter (where ${schema.clicks.isVerified} and ${schema.clicks.createdAt} > now() - interval '1 hour')`,
     })
     .from(schema.clicks);
 

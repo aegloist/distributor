@@ -3,8 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Crown, ExternalLink } from "lucide-react";
+import { Crown, ExternalLink, TrendingUp } from "lucide-react";
 import { cn, formatUsd, formatCompact, hostnameOf } from "@/lib/utils";
+import { MIN_BID_CENTS } from "@/lib/bidding";
 import type { LeaderboardRow } from "@/lib/queries";
 
 interface LeaderboardProps {
@@ -69,23 +70,36 @@ export function Leaderboard({ initialRows }: LeaderboardProps) {
   );
 }
 
+/** Minimum increment to outbid a listing (at least $1 more). */
+function outbidPrice(currentBidCents: number): number {
+  return Math.max(currentBidCents + 100, MIN_BID_CENTS);
+}
+
+/** Build the claim URL that pre-fills the submit bar with the outbid price. */
+function claimUrl(url: string, bidCents: number): string {
+  return `/?url=${encodeURIComponent(url)}&bid=${Math.floor(bidCents / 100)}#submit`;
+}
+
 /** Big podium card for top 3. #1 gets the crown + accent treatment. */
 function PodiumCard({ row, rank }: { row: LeaderboardRow; rank: number }) {
   const isLeader = rank === 1;
+  const claimPrice = outbidPrice(row.currentBidCents);
   return (
-    <Link
-      href={`/r/${row.slug}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border p-4 transition-all hover:scale-[1.01]",
-        isLeader
-          ? "border-accent/50 bg-gradient-to-b from-accent/[0.10] to-transparent sm:order-2 sm:scale-[1.04]"
-          : rank === 2
-            ? "border-border bg-card sm:order-1"
-            : "border-border bg-card sm:order-3",
-      )}
-    >
+    <div className="group relative">
+      <Link
+        href={`/r/${row.slug}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        prefetch={false}
+        className={cn(
+          "relative flex flex-col overflow-hidden rounded-xl border p-4 transition-all hover:scale-[1.01]",
+          isLeader
+            ? "border-accent/50 bg-gradient-to-b from-accent/[0.10] to-transparent sm:order-2 sm:scale-[1.04]"
+            : rank === 2
+              ? "border-border bg-card sm:order-1"
+              : "border-border bg-card sm:order-3",
+        )}
+      >
       {isLeader && (
         <div className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-accent-foreground rank-pulse">
           <Crown className="h-3.5 w-3.5" />
@@ -167,7 +181,15 @@ function PodiumCard({ row, rank }: { row: LeaderboardRow; rank: number }) {
           </div>
         </div>
       </div>
-    </Link>
+      </Link>
+
+      {/* Hover popup — "Claim #N for $X" */}
+      <ClaimPopup
+        rank={rank}
+        price={claimPrice}
+        url={row.url}
+      />
+    </div>
   );
 }
 
@@ -178,13 +200,16 @@ function LeaderboardRowItem({
   row: LeaderboardRow;
   rank: number;
 }) {
+  const claimPrice = outbidPrice(row.currentBidCents);
   return (
-    <Link
-      href={`/r/${row.slug}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex items-center gap-3 border-b border-border/60 px-3 py-3 transition-colors last:border-0 hover:bg-muted/40 sm:px-4"
-    >
+    <div className="group relative">
+      <Link
+        href={`/r/${row.slug}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        prefetch={false}
+        className="group flex items-center gap-3 border-b border-border/60 px-3 py-3 transition-colors last:border-0 hover:bg-muted/40 sm:px-4"
+      >
       <div className="w-6 shrink-0 text-center font-mono text-sm font-medium text-muted-foreground tnum">
         {rank}
       </div>
@@ -239,6 +264,47 @@ function LeaderboardRowItem({
         </span>
         <ExternalLink className="h-3 w-3 text-muted-foreground/30 transition-colors group-hover:text-accent-text" />
       </div>
+      </Link>
+
+      {/* Hover popup — "Claim #N for $X" */}
+      <ClaimPopup
+        rank={rank}
+        price={claimPrice}
+        url={row.url}
+        compact
+      />
+    </div>
+  );
+}
+
+/** Hover popup that appears on listing hover showing the price to claim that rank. */
+function ClaimPopup({
+  rank,
+  price,
+  url,
+  compact,
+}: {
+  rank: number;
+  price: number;
+  url: string;
+  compact?: boolean;
+}) {
+  return (
+    <Link
+      href={claimUrl(url, price)}
+      prefetch={false}
+      className={cn(
+        "pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 scale-95 opacity-0 transition-all duration-150",
+        "group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100",
+        "flex items-center gap-2 rounded-lg border border-accent/60 bg-card px-3 py-2 shadow-lg",
+        compact ? "text-xs" : "text-sm",
+      )}
+    >
+      <TrendingUp className={cn("text-accent-text", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
+      <span className="font-medium">
+        Claim <span className="font-mono font-bold text-accent-text tnum">#{rank}</span> for{" "}
+        <span className="font-mono font-bold tnum">{formatUsd(price)}</span>
+      </span>
     </Link>
   );
 }

@@ -61,15 +61,18 @@ export async function POST(req: Request) {
 
   // check cache
   let existingBidCents: number | null = null;
+  let existingListingId: string | null = null;
   try {
     const [existing] = await db
       .select({
+        id: schema.listings.id,
         currentBidCents: schema.listings.currentBidCents,
         status: schema.listings.status,
       })
       .from(schema.listings)
       .where(eq(schema.listings.url, normalized))
       .limit(1);
+    existingListingId = existing?.id ?? null;
     if (existing && existing.status !== "banned") {
       existingBidCents = existing.currentBidCents;
     }
@@ -85,6 +88,7 @@ export async function POST(req: Request) {
       isUsableMetadata(cached, normalized) &&
       Date.now() - cached.fetchedAt.getTime() < 1000 * 60 * 60 * 24
     ) {
+      await syncListingMetadata(existingListingId, cached, normalized);
       return NextResponse.json({
         title: cached.title,
         description: cached.description,
@@ -99,6 +103,7 @@ export async function POST(req: Request) {
   }
 
   const meta = await fetchMeta(normalized);
+  await syncListingMetadata(existingListingId, meta, normalized);
 
   // Persist only real page metadata. Remove stale challenge/fallback entries
   // so a later request can retry instead of serving them for 24 hours.
@@ -133,4 +138,33 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ ...meta, url: normalized, existingBidCents });
+}
+
+async function syncListingMetadata(
+  listingId: string | null,
+  meta: {
+    title: string | null;
+    description: string | null;
+    logoUrl: string | null;
+    faviconUrl: string | null;
+  },
+  sourceUrl: string,
+) {
+  if (!listingId || !isUsableMetadata(meta, sourceUrl)) return;
+  try {
+    await db
+      .update(schema.listings)
+      .set({
+        ...(meta.title ? { name: meta.title.slice(0, 80) } : {}),
+        ...(meta.description
+          ? { description: meta.description.slice(0, 280) }
+          : {}),
+        ...(meta.logoUrl ? { logoUrl: meta.logoUrl } : {}),
+        ...(meta.faviconUrl ? { faviconUrl: meta.faviconUrl } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.listings.id, listingId));
+  } catch (error) {
+    console.error("listing metadata refresh failed", error);
+  }
 }

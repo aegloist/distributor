@@ -31,36 +31,63 @@ export function isUsableMetadata(meta: FetchedMeta, sourceUrl: string): boolean 
 export async function fetchMeta(rawUrl: string): Promise<FetchedMeta> {
   const url = normalizePublicUrl(rawUrl);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const { res, finalUrl } = await fetchWithSafeRedirects(url, controller.signal);
-
-    if (!res.ok || res.headers.get("cf-mitigated") === "challenge") {
-      throw new Error("Metadata destination returned an interstitial or error page.");
-    }
-
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/html") && !contentType.includes("xml")) {
-      // Not an HTML page — best we can do is the hostname
-      return {
-        title: hostname(finalUrl),
-        description: null,
-        logoUrl: null,
-        faviconUrl: faviconFor(finalUrl),
-      };
-    }
-
-    const html = await readLimitedText(res, 1_000_000);
-    const parsed = parseHtml(html, finalUrl);
-    return isUsableMetadata(parsed, finalUrl)
-      ? parsed
-      : fallbackMeta(finalUrl);
+    const candidates = metadataCandidates(url);
+    return await Promise.any(
+      candidates.map((candidate) =>
+        fetchMetadataCandidate(candidate, controller.signal),
+      ),
+    );
   } catch {
     return fallbackMeta(url);
   } finally {
+    controller.abort();
     clearTimeout(timeout);
   }
+}
+
+/**
+ * Root domains commonly redirect to www. Trying the safe www form in parallel
+ * avoids spending the whole function budget on a slow redirect chain.
+ */
+function metadataCandidates(url: string): string[] {
+  const parsed = new URL(url);
+  const labels = parsed.hostname.split(".");
+  if (
+    labels.length === 2 &&
+    !parsed.hostname.startsWith("www.") &&
+    !isIP(parsed.hostname)
+  ) {
+    const www = new URL(parsed);
+    www.hostname = `www.${parsed.hostname}`;
+    return [url, www.toString()];
+  }
+  return [url];
+}
+
+async function fetchMetadataCandidate(
+  url: string,
+  signal: AbortSignal,
+): Promise<FetchedMeta> {
+  const { res, finalUrl } = await fetchWithSafeRedirects(url, signal);
+
+  if (!res.ok || res.headers.get("cf-mitigated") === "challenge") {
+    throw new Error("Metadata destination returned an interstitial or error page.");
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html") && !contentType.includes("xml")) {
+    throw new Error("Metadata destination is not an HTML page.");
+  }
+
+  const html = await readLimitedText(res, 1_000_000);
+  const parsed = parseHtml(html, finalUrl);
+  if (!isUsableMetadata(parsed, finalUrl)) {
+    throw new Error("Metadata destination did not expose usable metadata.");
+  }
+  return parsed;
 }
 
 function fallbackMeta(url: string): FetchedMeta {
@@ -85,7 +112,8 @@ async function fetchWithSafeRedirects(
       cache: "no-store",
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; DistributorBot/1.0; +https://distributor.lol)",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
         Accept: "text/html,application/xhtml+xml",
       },
     });

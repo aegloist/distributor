@@ -23,9 +23,17 @@ interface FetchedMeta {
  * description) and show a live preview card. The "Claim #X for $Y"
  * rank preview updates as you change the bid.
  */
-export function SubmitBar({ initialUrl = "" }: { initialUrl?: string }) {
+export function SubmitBar({
+  initialUrl = "",
+  initialBidCents,
+}: {
+  initialUrl?: string;
+  initialBidCents?: number;
+}) {
   const [url, setUrl] = useState(initialUrl);
-  const [bidStr, setBidStr] = useState("1");
+  const [bidStr, setBidStr] = useState(
+    initialBidCents ? String(initialBidCents / 100) : "1",
+  );
   const [creating, setCreating] = useState(false);
   const [bids, setBids] = useState<number[]>([]);
 
