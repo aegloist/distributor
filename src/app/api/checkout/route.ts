@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { polar, polarProductId } from "@/lib/polar";
-import { MIN_BID_CENTS } from "@/lib/bidding";
+import { MAX_BID_CENTS, MIN_BID_CENTS } from "@/lib/bidding";
 import { normalizePublicUrl, slugify } from "@/lib/utils";
 import { submitLimiter, hasRedis } from "@/lib/redis";
 
@@ -21,7 +21,7 @@ const Body = z.object({
     .number()
     .int()
     .min(MIN_BID_CENTS)
-    .max(2_000_000)
+    .max(MAX_BID_CENTS)
     .refine((value) => value % 100 === 0, "Bids must use whole dollars."),
 });
 

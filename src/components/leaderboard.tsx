@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Crown, ExternalLink, TrendingUp } from "lucide-react";
 import { cn, formatUsd, formatCompact, hostnameOf } from "@/lib/utils";
-import { MIN_BID_CENTS } from "@/lib/bidding";
+import { MAX_BID_CENTS, MIN_BID_CENTS } from "@/lib/bidding";
 import type { LeaderboardRow } from "@/lib/queries";
 
 interface LeaderboardProps {
@@ -71,8 +71,9 @@ export function Leaderboard({ initialRows }: LeaderboardProps) {
 }
 
 /** Minimum increment to outbid a listing (at least $1 more). */
-function outbidPrice(currentBidCents: number): number {
-  return Math.max(currentBidCents + 100, MIN_BID_CENTS);
+function outbidPrice(currentBidCents: number): number | null {
+  const price = Math.max(currentBidCents + 100, MIN_BID_CENTS);
+  return price <= MAX_BID_CENTS ? price : null;
 }
 
 /** Build the claim URL that pre-fills the submit bar with the outbid price. */
@@ -184,11 +185,9 @@ function PodiumCard({ row, rank }: { row: LeaderboardRow; rank: number }) {
       </Link>
 
       {/* Hover popup — "Claim #N for $X" */}
-      <ClaimPopup
-        rank={rank}
-        price={claimPrice}
-        url={row.url}
-      />
+      {claimPrice !== null && (
+        <ClaimPopup rank={rank} price={claimPrice} url={row.url} />
+      )}
     </div>
   );
 }
@@ -267,12 +266,9 @@ function LeaderboardRowItem({
       </Link>
 
       {/* Hover popup — "Claim #N for $X" */}
-      <ClaimPopup
-        rank={rank}
-        price={claimPrice}
-        url={row.url}
-        compact
-      />
+      {claimPrice !== null && (
+        <ClaimPopup rank={rank} price={claimPrice} url={row.url} compact />
+      )}
     </div>
   );
 }
@@ -293,16 +289,18 @@ function ClaimPopup({
     <Link
       href={claimUrl(url, price)}
       prefetch={false}
+      aria-label={`Claim rank ${rank} for ${formatUsd(price)}`}
       className={cn(
-        "pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 scale-95 opacity-0 transition-all duration-150",
+        "pointer-events-none absolute bottom-3 right-3 z-30 scale-95 whitespace-nowrap opacity-0 transition-all duration-150",
         "group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100",
-        "flex items-center gap-2 rounded-lg border border-accent/60 bg-card px-3 py-2 shadow-lg",
-        compact ? "text-xs" : "text-sm",
+        "focus-visible:pointer-events-auto focus-visible:scale-100 focus-visible:opacity-100",
+        "flex items-center gap-1 rounded-full border border-accent/60 bg-card px-2 py-1 text-[11px] font-medium shadow-sm",
+        compact ? "sm:right-20" : "",
       )}
     >
-      <TrendingUp className={cn("text-accent-text", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
-      <span className="font-medium">
-        Claim <span className="font-mono font-bold text-accent-text tnum">#{rank}</span> for{" "}
+      <TrendingUp className="h-3 w-3 text-accent-text" />
+      <span>
+        Claim <span className="font-mono font-bold text-accent-text tnum">#{rank}</span> ·{" "}
         <span className="font-mono font-bold tnum">{formatUsd(price)}</span>
       </span>
     </Link>

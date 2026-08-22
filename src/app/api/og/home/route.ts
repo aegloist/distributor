@@ -4,7 +4,7 @@ export const dynamic = "force-static";
 export function GET(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
   return Response.redirect(
-    new URL("/distributor-og-v1.png", appUrl),
+    new URL("/distributor-og-v2.png", appUrl),
     302,
   );
 }

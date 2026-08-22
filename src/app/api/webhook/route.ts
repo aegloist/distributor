@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { db, schema } from "@/db";
 import { fetchMeta, isUsableMetadata } from "@/lib/metadata";
 import { normalizePublicUrl, slugify } from "@/lib/utils";
+import { MAX_BID_CENTS } from "@/lib/bidding";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ const BidMetadata = z.object({
   description: z.string().max(280).optional().default(""),
   category: z.string().max(60).optional().default(""),
   goal: z.enum(["traffic", "signups", "customers", "awareness"]),
-  chargeCents: z.coerce.number().int().min(100).max(2_000_000),
+  chargeCents: z.coerce.number().int().min(100).max(MAX_BID_CENTS),
   provisionalSlug: z.string().max(80).optional().default(""),
 });
 

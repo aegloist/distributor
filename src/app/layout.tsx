@@ -44,9 +44,9 @@ export const metadata: Metadata = {
     url: "/",
     images: [
       {
-        url: "/distributor-og-v1.png",
-        width: 1536,
-        height: 1024,
+        url: "/distributor-og-v2.png",
+        width: 1730,
+        height: 909,
         alt: "Distributor.lol — Marketing that works",
       },
     ],

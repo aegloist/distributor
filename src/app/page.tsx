@@ -2,6 +2,7 @@ import { getLeaderboard, getLeaderboardStats } from "@/lib/queries";
 import { Leaderboard } from "@/components/leaderboard";
 import { SubmitBar } from "@/components/submit-bar";
 import { formatUsd, formatCompact } from "@/lib/utils";
+import { MAX_BID_CENTS } from "@/lib/bidding";
 
 export const revalidate = 30;
 
@@ -13,7 +14,9 @@ export default async function Home({
   const { url: prefillUrl, bid: prefillBid } = await searchParams;
   const parsedBid = Number(prefillBid);
   const prefillBidCents =
-    Number.isInteger(parsedBid) && parsedBid >= 1 && parsedBid <= 20_000
+    Number.isInteger(parsedBid) &&
+    parsedBid >= 1 &&
+    parsedBid * 100 <= MAX_BID_CENTS
       ? parsedBid * 100
       : undefined;
   const [rows, stats] = await Promise.all([
