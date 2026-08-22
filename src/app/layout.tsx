@@ -68,6 +68,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+        <meta
+          name="google-site-verification"
+          content="6m_4ZjmSXUh3AOuRdtxjrt7H3sJ6kXF5MTWM5pBS234"
+        />
         {/* Force light theme on first visit. Only switches to dark if user
             explicitly toggles it (stored in localStorage as "theme":"dark"). */}
         <script
