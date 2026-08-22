@@ -23,7 +23,6 @@ const Body = z.object({
     .min(MIN_BID_CENTS)
     .max(2_000_000)
     .refine((value) => value % 100 === 0, "Bids must use whole dollars."),
-  email: z.string().email(),
 });
 
 export async function POST(req: Request) {
@@ -131,7 +130,6 @@ export async function POST(req: Request) {
     goal: input.goal,
     resultingBidCents: String(resultingBidCents),
     chargeCents: String(chargeCents),
-    email: input.email,
   };
   if (listingId) metadata.listingId = listingId;
   if (input.description) metadata.description = input.description;
@@ -150,7 +148,6 @@ export async function POST(req: Request) {
           },
         ],
       },
-      customerEmail: input.email,
       successUrl: `${appUrl}/checkout/success?checkoutId={CHECKOUT_ID}`,
       allowDiscountCodes: false,
       metadata,

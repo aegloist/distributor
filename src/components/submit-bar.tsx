@@ -26,8 +26,6 @@ interface FetchedMeta {
 export function SubmitBar({ initialUrl = "" }: { initialUrl?: string }) {
   const [url, setUrl] = useState(initialUrl);
   const [bidStr, setBidStr] = useState("1");
-  const [email, setEmail] = useState("");
-  const [showEmail, setShowEmail] = useState(false);
   const [creating, setCreating] = useState(false);
   const [bids, setBids] = useState<number[]>([]);
 
@@ -126,11 +124,6 @@ export function SubmitBar({ initialUrl = "" }: { initialUrl?: string }) {
       );
       return;
     }
-    if (!email.trim() || !/.+@.+\..+/.test(email)) {
-      setShowEmail(true);
-      toast.error("Add your email for the receipt.");
-      return;
-    }
     await startCheckout();
   }
 
@@ -147,7 +140,6 @@ export function SubmitBar({ initialUrl = "" }: { initialUrl?: string }) {
           category: null,
           goal: "traffic",
           bidCents,
-          email: email.trim(),
         }),
       });
       if (!res.ok) {
@@ -274,23 +266,6 @@ export function SubmitBar({ initialUrl = "" }: { initialUrl?: string }) {
           Already listed at {formatUsd(meta.existingBidCents)} — enter at least{" "}
           {formatUsd(meta.existingBidCents + 100)} to move up.
         </p>
-      )}
-
-      {/* Email row — only appears when ready to pay */}
-      {showEmail && (
-        <div className="mt-2 flex items-center gap-2">
-          <Input
-            type="email"
-            placeholder="you@startup.com for your receipt"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="h-10"
-            autoFocus
-          />
-          <Button variant="accent" onClick={handlePay} disabled={creating}>
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm & pay"}
-          </Button>
-        </div>
       )}
 
       <p className="mt-2.5 text-center text-[11px] text-muted-foreground">

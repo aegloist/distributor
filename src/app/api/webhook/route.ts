@@ -18,7 +18,6 @@ const BidMetadata = z.object({
   goal: z.enum(["traffic", "signups", "customers", "awareness"]),
   chargeCents: z.coerce.number().int().min(100).max(2_000_000),
   provisionalSlug: z.string().max(80).optional().default(""),
-  email: z.string().email(),
 });
 
 type PaidOrder = {
@@ -115,7 +114,7 @@ async function fulfillPaidOrder(order: PaidOrder) {
           goal: meta.goal,
           currentBidCents: 0,
           totalPaidCents: 0,
-          ownerEmail: order.customer.email || meta.email,
+          ownerEmail: order.customer.email ?? null,
           status: "active",
         })
         .returning();
@@ -131,7 +130,7 @@ async function fulfillPaidOrder(order: PaidOrder) {
         resultingBidCents,
         polarCheckoutId: order.checkoutId,
         polarOrderId: order.id,
-        ownerEmail: order.customer.email || meta.email,
+        ownerEmail: order.customer.email ?? null,
       })
       .onConflictDoNothing({ target: schema.bidEvents.polarCheckoutId })
       .returning({ id: schema.bidEvents.id });
@@ -148,7 +147,7 @@ async function fulfillPaidOrder(order: PaidOrder) {
         logoUrl: fetched.logoUrl || listing.logoUrl,
         faviconUrl: fetched.faviconUrl || listing.faviconUrl,
         goal: meta.goal,
-        ownerEmail: order.customer.email || meta.email,
+        ownerEmail: order.customer.email || listing.ownerEmail,
         // Preserve moderation state: banned stays banned, hidden stays hidden.
         // A payment on a hidden/banned listing still adds money (the charge happened)
         // but does not restore visibility. Admin can manually unhide/unban.
