@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     title: "Distributor.lol: The distribution market",
     description:
       "Put money in, get measurable attention out. A live leaderboard where every dollar is put to work.",
-    images: ["/distributor-og-v1.png"],
+    images: ["/distributor-og-v2.png"],
   },
 };
 
